@@ -716,8 +716,8 @@ class MNetDataSet(object):
                         self.kintree
                     )
 
-                    lh_transl = joints_sbj_fhand[:, 28, :]
-                    rh_transl = joints_sbj_fhand[:, 43, :]
+                    lh_transl = joints_sbj_fhand[1:, 28, :]
+                    rh_transl = joints_sbj_fhand[1:, 43, :]
 
                     lh_orient_mat = global_rotation_matrot[:, 28, ...]
                     rh_orient_mat = global_rotation_matrot[:, 43, ...]
@@ -887,10 +887,11 @@ class MNetDataSet(object):
                 x=to_tensor(verts_obj),
                 feature_type=['closest']
             )
+            # print('BPS Device: ', bps_sample['closest'].device)
             self.obj_info[obj_name] = {'verts': verts_obj,
                                         'faces': faces_obj,
-                                        'verts_sample_id': bps_sample['closest_ids'],
-                                        'verts_sample': bps_sample['closest'],
+                                        'verts_sample_id': bps_sample['closest_ids'].cpu(),
+                                        'verts_sample': bps_sample['closest'].cpu(),
                                         'obj_mesh_file': mesh_path}
 
         return self.obj_info[obj_name]
