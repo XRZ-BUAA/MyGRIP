@@ -884,7 +884,7 @@ class MNetDataSet(object):
 
             obj_bps_torch = bps_torch(n_bps_points=n_verts_sample)
             bps_sample = obj_bps_torch.encode(
-                x=verts_obj,
+                x=to_tensor(verts_obj),
                 feature_type=['closest']
             )
             self.obj_info[obj_name] = {'verts': verts_obj,
@@ -1066,7 +1066,7 @@ def loc2vel_rot(loc, fps):
 #         mesh_tri = trimesh.Trimesh(vertices=mesh.v, faces=mesh.f).simplify_quadratic_decimation(n_faces)
 #     return Mesh(v=mesh_tri.vertices, f=mesh_tri.faces, vc=vc)
 
-def gg2l_cartesian(global_verts, transl, rot_quat):
+def g2l_cartesian(global_verts, transl, rot_quat):
     ''' 给定3d全局笛卡尔坐标系中一个点的坐标与旋转, 以及想要转换的点的集合, 
     计算出每个点在以给定点为原点的坐标系中的局部坐标
 
