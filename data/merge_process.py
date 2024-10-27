@@ -448,14 +448,14 @@ class MNetDataSet(object):
                         ],
                         dim=-1
                     )
-                    normal_motion_data['rotation_local_body_gt_list'].append(rotation_local_body_gt_list)
-                    normal_motion_data['rotation_local_left_hand_gt_list'].append(rotation_local_left_hand_gt_list)
-                    normal_motion_data['rotation_local_right_hand_gt_list'].append(rotation_local_right_hand_gt_list)
-                    normal_motion_data['hmd_position_global_gt_list'].append(hmd_position_global_gt_list)
-                    normal_motion_data['body_pos_global_gt_world'].append(body_pos_global_gt_world)
-                    normal_motion_data['left_hand_pos_global_gt_world'].append(left_hand_pos_global_gt_world)
-                    normal_motion_data['right_hand_pos_global_gt_world'].append(right_hand_pos_global_gt_world)
-                    normal_motion_data['head_global_trans_list'].append(head_global_trans_list)
+                    normal_motion_data['rotation_local_body_gt_list'].append(rotation_local_body_gt_list.cpu().float())
+                    normal_motion_data['rotation_local_left_hand_gt_list'].append(rotation_local_left_hand_gt_list.cpu().float())
+                    normal_motion_data['rotation_local_right_hand_gt_list'].append(rotation_local_right_hand_gt_list.cpu().float())
+                    normal_motion_data['hmd_position_global_gt_list'].append(hmd_position_global_gt_list.cpu().float())
+                    normal_motion_data['body_pos_global_gt_world'].append(body_pos_global_gt_world[1:].cpu().float())
+                    normal_motion_data['left_hand_pos_global_gt_world'].append(left_hand_pos_global_gt_world[1:].cpu().float())
+                    normal_motion_data['right_hand_pos_global_gt_world'].append(right_hand_pos_global_gt_world[1:].cpu().float())
+                    normal_motion_data['head_global_trans_list'].append(head_global_trans_list.cpu().float())
 
                     normal_motion_data['smplx_part_params'].append(fhand_params)
 
