@@ -1171,7 +1171,7 @@ if __name__ == '__main__':
         'out_path': out_path,
 
         ### number of vertices samples for each object
-        'n_verts_sample': 2048,
+        'n_verts_sample': 1024,
 
         ### body and hand model path
         'model_path': model_path,
