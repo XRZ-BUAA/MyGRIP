@@ -125,8 +125,8 @@ class MNetDataSet(object):
         
         ##############     From XRZ    ##############
         example_smplx_path = os.path.join(cfg.model_path, 'smplx', 'SMPLX_NEUTRAL.pkl')
-        with open(example_smplx_path, 'rb', encoding='latin1') as f:
-            self.example_smplx = pickle.load(f)
+        with open(example_smplx_path, 'rb') as f:
+            self.example_smplx = pickle.load(f, encoding='latin1')
         self.kintree = self.example_smplx['kintree_table'][0]
 
         ### group, mask, and sort sequences based on objects, subjects, and intents
