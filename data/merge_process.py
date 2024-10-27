@@ -65,11 +65,15 @@ if os.name == 'nt':
     from pytorch3d.pytorch3d.transforms.rotation_conversions import (
     matrix_to_rotation_6d,
     axis_angle_to_matrix,
+    matrix_to_quaternion,
+    quaternion_apply
     )
 else:
     from pytorch3d.transforms.rotation_conversions import (
     matrix_to_rotation_6d,
     axis_angle_to_matrix,
+    matrix_to_quaternion,
+    quaternion_apply
     )
 
 # from models.model_utils import full2bone, full2bone_aa, parms_6D2full, parms_decode_full
@@ -289,8 +293,10 @@ class MNetDataSet(object):
 
             hoi_obj_data = {
                 'lh_labels': [],
+                'lh_obj_dists': [],
                 'lh_obj_rep': [],
                 'rh_labels': [],
+                'rh_obj_dists': [],
                 'rh_obj_rep': []
             }
 
@@ -600,6 +606,7 @@ class MNetDataSet(object):
                     grasp_motion_data['rh2obj_gt'].append(to_cpu(rh2obj_gt['deltas']))
                     grasp_motion_data['rh2obj_gt_ids'].append(to_cpu(rh2obj_gt['closest_ids']))
 
+                    
 
 
                     rh2obj_h = self.bps_torch.encode(x= verts_obj,
@@ -639,6 +646,12 @@ class MNetDataSet(object):
                     grasp_motion_data['lh2obj_gt'].append(to_cpu(lh2obj_gt['deltas']))
                     grasp_motion_data['lh2obj_gt_ids'].append(to_cpu(lh2obj_gt['closest_ids']))
 
+                    ###############  From XRZ ###############
+                    
+                    hoi_obj_data['lh_obj_dists'].append(to_cpu(lh2obj_gt['dists']))
+                    hoi_obj_data['rh_obj_dists'].append(to_cpu(rh2obj_gt['dists']))
+
+                    ###############  From XRZ ###############
 
                     lh2obj_h = self.bps_torch.encode(x= verts_obj,
                                                      feature_type=bps_type_all,
@@ -709,7 +722,21 @@ class MNetDataSet(object):
                     lh_orient_mat = global_rotation_matrot[:, 28, ...]
                     rh_orient_mat = global_rotation_matrot[:, 43, ...]
 
-                    lh_obj_rep = get_obj2hand()
+                    lh_obj_rep = self.get_obj2hand(
+                        verts_obj,
+                        lh_transl.squeeze(1),
+                        lh_orient_mat.squeeze(1)
+                        
+                    )
+
+                    rh_obj_rep = self.get_obj2hand(
+                        verts_obj,
+                        rh_transl.squeeze(1),
+                        rh_orient_mat.squeeze(1)
+                    )
+
+                    hoi_obj_data['lh_obj_rep'].append(to_cpu(lh_obj_rep))
+                    hoi_obj_data['rh_obj_rep'].append(to_cpu(rh_obj_rep))
 
                     ######################  From XRZ #####################
 
@@ -809,29 +836,67 @@ class MNetDataSet(object):
                     self.splits['train'].append(object_name)
 
 
-    def load_obj_verts(self, obj_name, seq_data, n_verts_sample=2048):
+    # def load_obj_verts(self, obj_name, seq_data, n_verts_sample=2048):
 
+    #     mesh_path = os.path.join(self.grab_path, seq_data.object.object_mesh)
+    #     if obj_name not in self.obj_info:
+    #         np.random.seed(100)
+    #         # obj_mesh = Mesh(filename=mesh_path)
+    #         obj_mesh = o3d.io.read_triangle_mesh(mesh_path)
+    #         verts_obj = np.array(obj_mesh.vertices)
+    #         faces_obj = np.array(obj_mesh.triangles)
+
+    #         if verts_obj.shape[0] > n_verts_sample:
+    #             verts_sample_id = np.random.choice(verts_obj.shape[0], n_verts_sample, replace=False)
+    #         else:
+    #             verts_sample_id = np.arange(verts_obj.shape[0])
+
+    #         verts_sampled = verts_obj[verts_sample_id]
+    #         self.obj_info[obj_name] = {'verts': verts_obj,
+    #                                    'faces': faces_obj,
+    #                                    'verts_sample_id': verts_sample_id,
+    #                                    'verts_sample': verts_sampled,
+    #                                    'obj_mesh_file': mesh_path}
+
+    #     return self.obj_info[obj_name]
+
+    ####################### From XRZ ###############
+    def get_obj2hand(self, obj_verts, hand_transl, hand_rot):
+        hand_quat = matrix_to_quaternion(hand_rot)
+        obj_v_cart = g2l_cartesian(obj_verts, hand_transl, hand_quat)
+        obj_v_sph = cartesian2spherical(obj_v_cart)
+        return obj_v_sph
+
+
+    def load_obj_verts(self, obj_name, seq_data, n_verts_sample=1024):
         mesh_path = os.path.join(self.grab_path, seq_data.object.object_mesh)
         if obj_name not in self.obj_info:
-            np.random.seed(100)
-            # obj_mesh = Mesh(filename=mesh_path)
             obj_mesh = o3d.io.read_triangle_mesh(mesh_path)
+
+            v_dim = len(obj_mesh.vertices)
+
+            while v_dim < n_verts_sample:
+                obj_mesh = obj_mesh.subdivide_midpoint(number_of_iterations=1)
+                v_dim = len(obj_mesh.vertices)
+
             verts_obj = np.array(obj_mesh.vertices)
             faces_obj = np.array(obj_mesh.triangles)
 
-            if verts_obj.shape[0] > n_verts_sample:
-                verts_sample_id = np.random.choice(verts_obj.shape[0], n_verts_sample, replace=False)
-            else:
-                verts_sample_id = np.arange(verts_obj.shape[0])
-
-            verts_sampled = verts_obj[verts_sample_id]
+            obj_bps_torch = bps_torch(n_bps_points=n_verts_sample)
+            bps_sample = obj_bps_torch.encode(
+                x=verts_obj,
+                feature_type=['closest']
+            )
             self.obj_info[obj_name] = {'verts': verts_obj,
-                                       'faces': faces_obj,
-                                       'verts_sample_id': verts_sample_id,
-                                       'verts_sample': verts_sampled,
-                                       'obj_mesh_file': mesh_path}
+                                        'faces': faces_obj,
+                                        'verts_sample_id': bps_sample['closest_ids'],
+                                        'verts_sample': bps_sample['closest'],
+                                        'obj_mesh_file': mesh_path}
 
         return self.obj_info[obj_name]
+            
+
+
 
     def load_sbj_verts(self, sbj_id, seq_data):
 
@@ -1000,6 +1065,56 @@ def loc2vel_rot(loc, fps):
 #     else:
 #         mesh_tri = trimesh.Trimesh(vertices=mesh.v, faces=mesh.f).simplify_quadratic_decimation(n_faces)
 #     return Mesh(v=mesh_tri.vertices, f=mesh_tri.faces, vc=vc)
+
+def gg2l_cartesian(global_verts, transl, rot_quat):
+    ''' 给定3d全局笛卡尔坐标系中一个点的坐标与旋转, 以及想要转换的点的集合, 
+    计算出每个点在以给定点为原点的坐标系中的局部坐标
+
+            Parameters:
+            ----------
+            global_verts: torch.Tensor, (num_frames, obj_v_dim, 3)
+                物体顶点全局坐标
+            transl: torch.Tensor, (num_frames, 3)
+                手部坐标系原点
+            rot_quat: torch.Tensor, (num_frames, 4)
+                手部坐标系的旋转四元数
+
+            Returns:
+            ----------
+            local_verts: torch.Tensor, (num_frames, obj_v_dim, 3)
+    '''
+    # 平移
+    transl = transl.unsqueeze(1).repeat(1, global_verts.shape[1], 1)
+    local_verts = global_verts - transl
+
+    # 旋转
+    local_verts_rotated = quaternion_apply(
+        rot_quat.unsqueeze(1).repeat(1, global_verts.shape[1], 1),
+        local_verts
+        )
+    
+    return local_verts_rotated
+
+
+# 写这个函数，原意是为了将物体顶点坐标转换为手部球坐标系的坐标
+def cartesian2spherical(points):
+    ''' 给定3d笛卡尔坐标系中的一组点, 计算出它们在球面坐标系中的坐标
+
+            Parameters:
+            ----------
+            points: torch.Tensor, (num_frames, obj_v_dim, 3)
+                物体顶点坐标
+
+            Returns:
+            ----------
+            spherical_coords: torch.Tensor, (num_frames, obj_v_dim, 3)
+                物体顶点在球面坐标系中的坐标
+    '''
+    r = torch.sqrt(torch.sum(points ** 2, dim=-1))
+    theta = torch.atan2(points[..., 1], points[..., 0])
+    phi = torch.acos(torch.clamp(points[..., 2] / r, -1.0, 1.0))
+    spherical_coords = torch.stack([r, theta, phi], dim=-1)
+    return spherical_coords
 
 if __name__ == '__main__':
     # import argparse
