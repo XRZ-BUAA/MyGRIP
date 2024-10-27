@@ -388,7 +388,7 @@ class MNetDataSet(object):
                     joints_sbj_fhand = sbj_output_fhand.joints
                     torso_pose = torch.cat([global_orient, body_pose], dim=-1)
                     torso_pose_aa = torso_pose[..., :66].reshape(-1, 22, 3)
-                    torso_pose_6d = axis_angle_to_rotation_6d.reshape(bs, -1)
+                    torso_pose_6d = axis_angle_to_rotation_6d(torso_pose_aa).reshape(bs, -1)
                     rotation_local_body_gt_list = torso_pose_6d[1:]
 
                     left_hand_pose_aa = left_hand_pose[...,:45].reshape(-1, 15, 3)
